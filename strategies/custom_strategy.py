@@ -9,7 +9,10 @@ from datetime import datetime
 class CustomStrategy(CtaTemplate):
     """"""
     author = "Your Name"
-
+    capital = 1000.0
+    phi = 0.0004
+    total = 0
+    win = 0
     inPos = False
     openPos = 0.0
 
@@ -66,24 +69,29 @@ class CustomStrategy(CtaTemplate):
 
             # if current_bar.close_price > current_bar.open_price * 1.01 and \
             #         prev_bar.close_price > prev_bar.open_price * 1.01:
-            if current_bar.close_price > current_bar.open_price * 1.03 and not self.inPos:
-                self.buy(current_bar.close_price*1.00, 1)  # Đặt lệnh mua với giá close của current_bar
-                self.openPos = current_bar.close_price
+            if current_bar.close_price >= current_bar.open_price * 1.02 and not self.inPos:
+                self.buy(current_bar.close_price, 1)  # Đặt lệnh mua với giá close của current_bar
+                self.openPos = current_bar.close_price*1
+                # print('> mua tai: ', self.openPos)
                 self.inPos = True
 
             # current_bar.close_price < current_bar.open_price*0.99 or 
             # current_bar.close_price >= self.openPos*1.3 
-            if (current_bar.close_price <= prev_bar.close_price*0.9995\
-                or current_bar.close_price <= self.openPos*0.9) and self.inPos:
+            # or current_bar.close_price<= current_bar.open_price)
+            if (current_bar.close_price <= self.openPos*.99 or current_bar.close_price >= self.openPos*1.002)\
+                  and self.inPos:
                 self.sell(current_bar.close_price, 1)  # Đặt lệnh bán với giá close của current_bar
+                tienvaolenh = min(self.capital,25000)*0.2*125
+                loinhuan = max(tienvaolenh/self.openPos*(current_bar.close_price*0.995-self.openPos*1.005) -tienvaolenh*self.phi*2, -tienvaolenh/125)
+                # print('<<<< ban tai: ', current_bar.close_price, 'loi nhuan: ', loinhuan)
+                # Tính toán lại capital:
+                self.capital = self.capital + loinhuan
+                print('****** ', self.capital, ' ******')
+                self.total+=1
+                if loinhuan > 0:
+                    self.win+=1
+                print('total ', self.total, ' win: ', self.win, ' winrate: ', float(self.win)/float(self.total))
                 self.inPos =False
-
-            # if current_bar.close_price < current_bar.open_price * 0.995 and \
-            #         prev_bar.close_price < prev_bar.open_price * 0.995:
-            #     self.buy(current_bar.close_price*0.999, 1)
-
-            # if current_bar.close_price > current_bar.open_price:
-            #     self.sell(current_bar.close_price, 1)
 
     def on_order(self, order):
         """

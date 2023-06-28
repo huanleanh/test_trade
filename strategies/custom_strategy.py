@@ -9,12 +9,31 @@ from datetime import datetime
 class CustomStrategy(CtaTemplate):
     """"""
     author = "Your Name"
-    capital = 1000.0
+    capital = []
     phi = 0.0004
-    total = 0
-    win = 0
-    inPos = False
-    openPos = 0.0
+    total = []
+    win = []
+    inPos = []
+    openPos = []
+    toBuy = [1, 1.15, 1.2, 1.25, 1.26, 1.27, 1.28, 1.30, 1.5, 1.7, 2, 2.3, 2.4, 2.5, 2.55, 2.6, 2.65, 2.7, 2.75, 3, 3.5, 4]
+    toSell = [0.3,0.4,0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 13, 15, 17, 20]
+    toLoop = []
+    count=0
+    txt = []
+    for i in toBuy:
+        for j in toSell:
+            toLoop.append([i,j])
+            txt.append(count)
+            count+=1
+            ct = 0
+    for i in toLoop:
+        inPos.append(False)
+        win.append(0)
+        total.append(0)
+        openPos.append(0.0)
+        capital.append(1000.0)
+        with open('report/' + str(i[0]) + ' - ' + str(i[1]) + '.txt', 'w', encoding= 'utf-8') as txt[ct]:
+            continue
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
@@ -66,32 +85,37 @@ class CustomStrategy(CtaTemplate):
         if len(self.last_two_bars) == 2:
             prev_bar = self.last_two_bars[0]
             current_bar = self.last_two_bars[1]
+            ct = 0
+            for i in self.toLoop:
+                # if current_bar.close_price > current_bar.open_price * 1.01 and \
+                #         prev_bar.close_price > prev_bar.open_price * 1.01:
+                if current_bar.close_price >= current_bar.open_price * (1+float(i[0])/100) and not self.inPos[ct] and self.capital[ct]>3:
+                    self.buy(current_bar.close_price, 1)  # Đặt lệnh mua với giá close của current_bar
+                    self.openPos[ct] = current_bar.close_price*1
+                    # print('> mua tai: ', self.openPos)
+                    self.inPos[ct] = True
+                    self.total[ct]+=1
 
-            # if current_bar.close_price > current_bar.open_price * 1.01 and \
-            #         prev_bar.close_price > prev_bar.open_price * 1.01:
-            if current_bar.close_price >= current_bar.open_price * 1.02 and not self.inPos:
-                self.buy(current_bar.close_price, 1)  # Đặt lệnh mua với giá close của current_bar
-                self.openPos = current_bar.close_price*1
-                # print('> mua tai: ', self.openPos)
-                self.inPos = True
+                # current_bar.close_price < current_bar.open_price*0.99 or 
+                # current_bar.close_price >= self.openPos*1.3 
+                # or current_bar.close_price<= current_bar.open_price)
+                if (current_bar.close_price <= self.openPos[ct]*.993 or current_bar.close_price >= self.openPos[ct]*(1+float(i[1])/100))\
+                    and self.inPos[ct]:
+                    self.sell(current_bar.close_price, 1)  # Đặt lệnh bán với giá close của current_bar
+                    tienvaolenh = min(self.capital[ct],25000)*0.2*125
+                    loinhuan = max(tienvaolenh/self.openPos[ct]*(current_bar.close_price*0.999-self.openPos[ct]*1.001) -tienvaolenh*self.phi*2, -tienvaolenh/99)
+                    # print('<<<< ban tai: ', current_bar.close_price, 'loi nhuan: ', loinhuan)
+                    # Tính toán lại capital:
+                    self.capital[ct] = self.capital[ct] + loinhuan
+                    # print('****** ', self.capital, ' ******')
+                    
+                    if loinhuan > 0:
+                        self.win[ct]+=1
+                    with open('report/' + str(i[0]) + ' - ' + str(i[1]) + '.txt', 'a', encoding= 'utf-8') as self.txt[ct]:
+                        self.txt[ct].write('Profit:  ' + str(int(loinhuan)) + ' Capital:  ' + str(int(self.capital[ct])) + ' Total trade:  ' + str(self.total[ct]) + ' Win trade:  ' + str(self.win[ct]) + ' Win rate:  ' + str(float(int(float(self.win[ct])/float(self.total[ct])*1000)/10)) + '%\n')
+                    self.inPos[ct] =False
+                ct+=1
 
-            # current_bar.close_price < current_bar.open_price*0.99 or 
-            # current_bar.close_price >= self.openPos*1.3 
-            # or current_bar.close_price<= current_bar.open_price)
-            if (current_bar.close_price <= self.openPos*.99 or current_bar.close_price >= self.openPos*1.002)\
-                  and self.inPos:
-                self.sell(current_bar.close_price, 1)  # Đặt lệnh bán với giá close của current_bar
-                tienvaolenh = min(self.capital,25000)*0.2*125
-                loinhuan = max(tienvaolenh/self.openPos*(current_bar.close_price*0.995-self.openPos*1.005) -tienvaolenh*self.phi*2, -tienvaolenh/125)
-                # print('<<<< ban tai: ', current_bar.close_price, 'loi nhuan: ', loinhuan)
-                # Tính toán lại capital:
-                self.capital = self.capital + loinhuan
-                print('****** ', self.capital, ' ******')
-                self.total+=1
-                if loinhuan > 0:
-                    self.win+=1
-                print('total ', self.total, ' win: ', self.win, ' winrate: ', float(self.win)/float(self.total))
-                self.inPos =False
 
     def on_order(self, order):
         """
